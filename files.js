@@ -142,10 +142,11 @@ var file = module.exports = {
 
  	_sendToNeo4j: function (fileName, graphs, start, graphLength, labels, labels_edge, edge_weight) {
  		var CONST_MAX_INSERTION = 25000;
- 		console.log(mathematicaPath+fileName+' '+start+' '+CONST_MAX_INSERTION+posFileNamePath);
- 		return scripts.execute(mathematicaPath+fileName+' '+start+' '+CONST_MAX_INSERTION+posFileNamePath)
+ 		console.log(mathematicaPath+fileName+'" '+start+' '+CONST_MAX_INSERTION+posFileNamePath);
+ 		return scripts.execute(mathematicaPath+fileName+'" '+start+' '+CONST_MAX_INSERTION+posFileNamePath)
 			.then(function (results) {
 				console.log("Mathematica executado com sucesso!");
+				console.log("result1: "+results.stdout);
 				var stringResults = results.stdout.replace(/(\r\n|\n|\r)/gm,""),
 			        mathematicaNodesProps = scripts.mathematicaGraphProperties(stringResults),
 			        index, bc, vertices, arrayToString, edge_prop = [],	graph, nodes,  vec = [], 
@@ -153,13 +154,13 @@ var file = module.exports = {
 			        param = {
 			           'statements': []
 			        };
-			    //console.log('mathematicaNodesProps: '+JSON.stringify(mathematicaNodesProps));
+			    console.log('mathematicaNodesProps: '+JSON.stringify(mathematicaNodesProps));
 				if (results.stdout[0] == '\r') {
 			    	return new promise( function (resolve, reject) {
 						reject(results.stdout);
 					});
 			    }
-			    //console.log("mathematicaNodesProps:"+ JSON.stringify(mathematicaNodesProps));
+			    console.log("mathematicaNodesProps:"+ JSON.stringify(mathematicaNodesProps));
 				for (var i = 0; i < CONST_MAX_INSERTION; i++) {
 					start++;
 					graph = mathematicaNodesProps.props[i].graph;
@@ -257,6 +258,7 @@ var file = module.exports = {
 					});
 				}
 				var sParam = JSON.stringify(param);
+				console.log(sParam);
 				return cypher
 					.statements(sParam)
 					.then(function (results) {
@@ -272,7 +274,7 @@ var file = module.exports = {
 						});
 					});
 		}) 
-		.catch( function (err) {
+		.catch(function (err) {
 			return new promise( function (resolve, reject) {
 				reject('Error in ELST Function is '+ err);
 			});

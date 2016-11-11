@@ -196,8 +196,36 @@ function _returnGraphProps(req, res, query, props) {
     cypher
     .query(query)
     .then(function (results) {
+        //console.log(results);
         //var objectProps = translate.getPropValue(JSON.parse(results));
-        console.log(JSON.stringify(JSON.parse(results).data[0][0]));
+        //var string = results[0].columns + "|"+,
+        /*var jResults = JSON.parse(results),
+            columns = JSON.stringify(jResults.columns),
+            data = JSON.stringify(jResults.data)*/
+        var graphs = JSON.parse(results).data,
+            systemResponse = utility._relationshipResponse(graphs);
+        return translate
+            .convertToEL(systemResponse, true)
+            .then(function () {
+                res.status(200).json({
+                    'status': GET_SUCCESS,
+                    'message': 'arquivos salvos em comp/'
+                });
+            })
+            .catch(function (err) {
+                res.status(500).json({ 
+                    'error': GET_ERROR,
+                    'message': 'System error during search. Try again later!',
+                    'system_response': err 
+                });
+            });
+        //console.log(systemResponse);
+        //cnsole.log("Columns: "+results);
+        /*fs.writeFile(downloads+"teste.csv", string, 'utf8', function (err) {
+                if (err) return console.log(err);
+            });*/
+
+        //console.log(JSON.stringify(JSON.parse(results).data[0][0]));
     })
     .catch(function (err) {
         res.status(500).json({ 

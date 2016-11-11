@@ -10,6 +10,8 @@ nodes = module.exports = {
 	_arrayProps: function (name, prop, arrayOfProps) {
 		if (typeof prop.value !== 'undefined') 
 			arrayOfProps.push(name.min);
+		else if (JSON.stringify(name.min) ==  JSON.stringify(name.max))
+			arrayOfProps.push(name.min);
 		else {
 			if (typeof prop.min !== 'undefined') 
 				arrayOfProps.push(name.min);
@@ -24,6 +26,8 @@ nodes = module.exports = {
 		var filter = "";
 		if (typeof prop.value !== 'undefined') 
 			filter = ', '+name.min;
+		else if (JSON.stringify(name.min) ==  JSON.stringify(name.max))
+			filter += ', '+name.min;
 		else {
 			if (typeof prop.min !== 'undefined') 
 				filter += ', '+name.min;
@@ -36,9 +40,10 @@ nodes = module.exports = {
 	},
 	_withProp: function (name, prop) {
 		var filter = "", propName;
-		if (typeof prop.value !== 'undefined') {
+		if (typeof prop.value !== 'undefined') 
 			filter = ', root.'+name.min+' as '+name.min;
-		}
+		else if (JSON.stringify(name.min) ==  JSON.stringify(name.max))
+			filter = ', root.'+name.min+' as '+name.min;
 		else {
 			if (typeof prop.min !== 'undefined')
 				filter += ', root.'+name.min+' as '+name.min;
@@ -275,7 +280,7 @@ nodes = module.exports = {
 	    	query += this._checkPropCase(name, graph.number_of_edges);
 	    	if (loadProps) {
 			 returnCypher += this._returnProp(name, graph.number_of_edges);
-			 withCypher += this._withProp(name, graph.number_of_edges);
+			 //withCypher += this._withProp(name, graph.number_of_edges);
 			 arrayOfProps = this._arrayProps(name, graph.degree, arrayOfProps);
 			}
 	    }
@@ -295,20 +300,37 @@ nodes = module.exports = {
 	    	query += ' and m.key="'+graph.key+'"';
 	    }
 	    
-	    query += ' WITH COLLECT(m) as roots'+
+
+		if (loadProps) {
+	    	query += ' WITH COLLECT(m) as roots'+
+				' UNWIND roots as root'+
+				' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
+				' WITH n.key as key, COUNT(r) as count, root.number_of_edges as number_of_edges,'+
+				' root as virtual'+withCypher + ', COLLECT(nodes(p)) as graphs'+
+				' WHERE count = number_of_edges'+
+				' RETURN graphs, virtual';
+	    	return {
+	    		'cypher': query,
+	    		'props': arrayOfProps
+	    	}
+		}
+		query += ' WITH COLLECT(m) as roots'+
 				' UNWIND roots as root'+
 				' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
 				' WITH n.key as key, COUNT(r) as count, root.number_of_edges as number_of_edges'+
 				withCypher + ', COLLECT(nodes(p)) as graphs'+
 				' WHERE count = number_of_edges'+
 				' RETURN graphs';
-		if (loadProps) {
-	    	query += returnCypher;
-	    	return {
-	    		'cypher': query,
-	    		'props': arrayOfProps
-	    	}
-		}
 	    return query;
 	},
+
+	_returnForAllGraph: function (withCypher) {
+		return ' WITH COLLECT(m) as roots'+
+				' UNWIND roots as root'+
+				' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
+				' WITH n.key as key, COUNT(r) as count, root.number_of_edges as number_of_edges,'+
+				' root as virtual'+withCypher + ', COLLECT(nodes(p)) as graphs'+
+				' WHERE count = number_of_edges'+
+				' RETURN graphs, virtual';
+	}
 }

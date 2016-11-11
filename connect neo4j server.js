@@ -3,7 +3,7 @@ var express = require("express"),
     http = require('http'),
     app = express(),
     request = require("request-promise"),
-    auth = 'bmVvNGo6bGFidGVs';
+    auth = 'bmVvNGo6YW5kcmU=';
 
 var neo4j = module.exports = {
     neo4jServerInformations: function () {

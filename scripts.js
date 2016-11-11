@@ -184,7 +184,7 @@ var scripts = module.exports = {
 	mathematicaGraphProperties: function (string) {
 		var properties = {'props': []}, prop = {}, getAttribute,
 			i = 0;
-		//console.log(string);
+		//console.log(string.length);
 		while (i < string.length) {
 			prop = {};
 			/*Line of graph number*/
@@ -295,6 +295,7 @@ var scripts = module.exports = {
 			getAttribute = this._getProperty(string, i, false);
 			prop.vertices_eccentricity = getAttribute.prop;
 			i = getAttribute.position;
+			//console.log("prop:::"+prop);
 			if (this._checkProp(prop)) {
 				console.log("entrou no erro!!");
 				return 'undefined';

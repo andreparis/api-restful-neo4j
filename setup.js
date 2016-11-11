@@ -1,17 +1,23 @@
+var BASEPATH = '"C:\\Users\\Andre\\Documents\\Projeto LabTel\\API-RESTful\\';
+
 var setup = module.exports = {
+
 	getMathematicaPath: function () {
 		return 'math'+
-			' -script "C:\\Users\\Andre\\Documents\\Projeto LabTel\\API JavaScript V2.0\\scripts\\mathematica.m"'+
-			' "C:\\Users\\Andre\\Documents\\Projeto LabTel\\API JavaScript V2.0\\uploads\\';
+			' -script '+BASEPATH+'scripts\\mathematica.m" '+BASEPATH+'uploads\\';
 	},
 	getShowgPath: function () {
-		return '"C:\\Users\\Andre\\Documents\\Projeto LabTel\\API JavaScript V2.0\\scripts\\showg.exe"';
+		return BASEPATH+'scripts\\showg.exe"';
 	},
 	getUploadedFilePath: function () {
 		return 'uploads\\';
 	},
 	getScriptsPath: function () {
-		return 'C:\\Users\\Andre\\Documents\\Projeto LabTel\\API JavaScript\\scripts\\';
+		return BASEPATH+'scripts\\';
+	},
+	getMatheticaCompPath: function() {
+		return 'math'+
+			' -script '+BASEPATH+'scripts\\mathematica_comp.m" '+BASEPATH+'comp\\'; 
 	},
 	getOS: function () {
 		/*

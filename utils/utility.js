@@ -77,7 +77,12 @@ var utilities = module.exports = {
 				for (var k = 0; k < graphs[i][j].length; k++) {
 					for (var l = 0; l < graphs[i][j][k].length; l++) {
 						systemResponse.push(graphs[i][j][k][l].data);
+						//console.log(graphs[i][j][k][l].data.node+" e "+graphs[i][j][k][l].data.key)
 					}
+				}
+				if (typeof graphs[i][j].data != 'undefined') {
+					systemResponse.push(graphs[i][j].data);
+					//console.log(graphs[i][j].data.node+" e "+graphs[i][j].data.key)
 				}
 			}
 		}
