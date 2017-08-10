@@ -1,11 +1,8 @@
 (* ::Package:: *)
 
 path = $CommandLine[[4]];
-startPoint = ToExpression[$CommandLine[[5]]];
-endPoint = ToExpression[$CommandLine[[6]]];
 listaGrafos=Import[path,"Table"];
-count = 0;
-For[i=startPoint,i < Length[listaGrafos],i++;
+For[i=0,i < Length[listaGrafos],i++;
 	line=listaGrafos[[i]];
 	m = Length[line];
 	from={};
@@ -95,13 +92,12 @@ For[i=startPoint,i < Length[listaGrafos],i++;
 	Print[vertList];
 	Print["N"];
 	Print["{"];
-	For[l=1, l<Length[vertList], l++,
+	For[l=1, l<=Length[vertList], l++,
 		Print[VertexEccentricity[g, vertList[[l]]]];
-		If[l!=Length[vertList]-1, Print[","],Print["}"]];
+		If[l!=Length[vertList], Print[","],Print["}"]];
 	];
 	Print["-"];
-	count++;
-	If[count >= endPoint, Break[]];
+
 
 ];
 ClearAll["Global`*"];

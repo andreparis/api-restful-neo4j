@@ -1,7 +1,8 @@
 var fs = require('fs'),
     q = require('q'),
     promise = require('bluebird'),
-	cypher = require('./connect neo4j server.js'),
+    neo4j = require('neo4j-driver').v1,
+    cypher = require('./connect neo4j server.js'),
     utils = require('./utils/utility.js'),
 	scripts = require('./scripts.js'),
 	setProps = require('./nodes_prop.js'),
@@ -9,20 +10,24 @@ var fs = require('fs'),
 	setupPaths = require('./setup.js'),
 	filePath = setupPaths.getUploadedFilePath(),
 	mathematicaPath = setupPaths.getMathematicaPath(),
+	juliaPath = setupPaths.getJuliaPath(),
 	showg = setupPaths.getShowgPath(),
-	posFileNamePath = setupPaths.getOS() ? '' : '"';
+	posFileNamePath = setupPaths.getOS() ? '' : '"',
+	driver = neo4j.driver("bolt://localhost:7687", neo4j.auth.basic("neo4j", "labtel123")),
+    session = driver.session();
 			
 	
 var file = module.exports = {
 	convertToBDRestPattern: function (fileName, format, labels) {
 		var fileNameAndPath = filePath+fileName;
 		if (format == 'el') {
+			console.log("File input el");
 			return utils
 				._openFile(fileNameAndPath)
 				.then( function (result) {
-					console.log("entrou aqui!! "+result);
+					//console.log("entrou aqui!! "+result);
 					return file
-						.convertELST(result, fileName, labels, 'el')
+						.convertELST(result, fileName, labels, format)
 						.catch( function (err) {
 				        	return new promise( function (resolve, reject) {
 								reject('Error to convert!'+ err);
@@ -36,8 +41,9 @@ var file = module.exports = {
 		        });
 		}
 		else if (format == 'g6') {
+			console.log("File input g6");
 			var fileN = setupPaths.getUploadedFilePath();
-			console.log(fileN);
+			//console.log(showg+' -e '+fileN+fileName+posFileNamePath);
 			return scripts
 				.execute(showg+' -e '+fileN+fileName+posFileNamePath)
 				.then( function (graph) {
@@ -60,23 +66,23 @@ var file = module.exports = {
 				});
 		}
 		else if (format == 'tgf') {
+			console.log("File input tgf");
 			return utils
 				._openFile(fileNameAndPath)
 				.then( function (result) {
-					console.log(result);
 					return file
 						.convertTGFtoEL(result, fileName);
 				})
 				.then( function (result) {
-					console.log(result);
-					if (result.labels.length !== 0)
-						labels = result.labels;
+					console.log("TESTE "+result.labels.length);
+					//if (result.labels.length !== 0)
+					//	labels = result.labels;
+					console.log(result.content+result.file_name+labels+format);
 					return file
-						.convertELST(result.content, result.file_name, 
-									labels, 'tgf')
+						.convertELST(result.content, result.file_name, labels, format)
 						.catch( function (err) {
 				        	return new promise( function (resolve, reject) {
-								reject('Error to convert!'+ err);
+								reject('Error to convert!'+ JSON.stringify(err));
 							});
 				        });
 				})
@@ -87,17 +93,17 @@ var file = module.exports = {
 		        });
 		}
 		else if (format == 'lgf') {
+			console.log("File input lgf");
 			return utils
 				._openFile(fileNameAndPath)
 				.then( function (result) {
-					console.log(result);
+					//console.log(result);
 					return file
 						.converLGFtoEL(result, fileName);
 				})
 				.then( function (result) {
 					return file
-						.convertELST(result.content, result.file_name,
-							labels, 'lgf', result.labels, result.peso)
+						.convertELST(result.content, result.file_name, labels, format, result.labels, result.peso)
 						.catch( function (err) {
 							return new promise( function (resolve, reject) {
 								reject('Error to convert!'+ err);
@@ -111,17 +117,18 @@ var file = module.exports = {
 				});
 		}
 		else if (format == 'gagx3') {
+			console.log("File input gagx3");
 			return utils
 				._openFile(fileNameAndPath)
 				.then( function (result) {
-					console.log(result);
+					//console.log(result);
 					return file
 						.converGAGX3toEL(result, fileName);
 				})
 				.then( function (result) {
-					console.log(result.content + '\nname: '+  result.file_name);
+					//console.log(result.content + '\nname: '+  result.file_name);
 					return file
-						.convertELST(result.content, result.file_name, labels, 'gagx3')
+						.convertELST(result.content, result.file_name, labels, format)
 						.catch( function (err) {
 							return new promise( function (resolve, reject) {
 								reject('Error to convert! '+ err);
@@ -140,141 +147,169 @@ var file = module.exports = {
 			});
  	},
 
- 	_sendToNeo4j: function (fileName, graphs, start, graphLength, labels, labels_edge, edge_weight) {
- 		var CONST_MAX_INSERTION = 25000;
- 		console.log(mathematicaPath+fileName+'" '+start+' '+CONST_MAX_INSERTION+posFileNamePath);
- 		return scripts.execute(mathematicaPath+fileName+'" '+start+' '+CONST_MAX_INSERTION+posFileNamePath)
-			.then(function (results) {
-				console.log("Mathematica executado com sucesso!");
-				console.log("result1: "+results.stdout);
-				var stringResults = results.stdout.replace(/(\r\n|\n|\r)/gm,""),
-			        mathematicaNodesProps = scripts.mathematicaGraphProperties(stringResults),
-			        index, bc, vertices, arrayToString, edge_prop = [],	graph, nodes,  vec = [], 
-			        edgeInd = 0, key, count, countReq = 0,
-			        param = {
-			           'statements': []
-			        };
-			    console.log('mathematicaNodesProps: '+JSON.stringify(mathematicaNodesProps));
-				if (results.stdout[0] == '\r') {
-			    	return new promise( function (resolve, reject) {
-						reject(results.stdout);
-					});
-			    }
-			    console.log("mathematicaNodesProps:"+ JSON.stringify(mathematicaNodesProps));
-				for (var i = 0; i < CONST_MAX_INSERTION; i++) {
-					start++;
-					graph = mathematicaNodesProps.props[i].graph;
-					nodes = {
-						'parameters': {
-							'props': []
-						}
-					};
-					//console.log("graphs[i]:"+graphs[i])
-					//console.log(graphs[i]);
-					vec = utils._stringToAray(graphs[graph-1]);
-					//console.log('vec: '+vec);
-					arrayToString = vec.toString().replace (/,/g, "");
-						//console.log(arrayToString);
-					key = crypto.createHmac("md5", "password")
-								.update(arrayToString).digest('hex');
-					count = 0;
-					//console.log('+mathematicaNodesProps.props['+i+']'+mathematicaNodesProps.props[i]);
-					//console.log("mathematicaNodesProps.props["+i+"].graph "+mathematicaNodesProps.props[i].graph);
-					//console.log("mathematicaNodesProps.props["+i+"].vertices "+mathematicaNodesProps.props[i].vertices);
-					vertices = mathematicaNodesProps.props[i].vertices;
-					for (var j = 0; j < vertices.length; j++) {
-						if (typeof labels[j] == 'undefined') 
-							labels[j] = 'null';
-						nodes.parameters.props.push(setProps.nodeLeaf(mathematicaNodesProps.props[i], j, 
-																		key, labels[j]));
-					}
-					//console.log(nodes.parameters);
-					nodes.parameters.props.push(setProps.nodeRoot(mathematicaNodesProps.props[i], key));
-					param.statements.push({
-						'statement': 'OPTIONAL MATCH p=(n) WHERE n.graph='+graph+
-									' AND n.key="'+key+'"'+
-									' FOREACH (u in'+
-									' CASE WHEN'+
-									' nodes(p) IS NULL'+
-									' THEN [n]'+
-									' ELSE [] END |'+
-									' CREATE (n {props}) )',
-						'parameters': nodes.parameters
-					});
-					var edgeBetCent = 0;
-					if (typeof labels_edge !== 'undefined') {
-						for (var a = 0; a < labels_edge.length; a++)
-							edge_prop[a] = ', edge_label: "'+labels_edge[a]+
-									'", peso:"'+edge_weight[a]+'"';
-					}
-					else if (typeof edge_weight !== 'undefined') {
-						for (var a = 0; a < edge_weight.length; a++)
-							edge_prop[a] = ', peso:"'+edge_weight[a]+'"';
-					}
-					else {
-						var len = vec.length;
-						for (var a = 0; a < len; a++)
-							edge_prop[a] = '';
-					}
-					//console.log(edge_prop);
-					edgeInd = 0;
-					for (var k = 0; k < (vec.length-1); k++) {
-						//console.log(vec[k]+" "+vec[k+1]);
-						//console.log(edge_prop[edgeInd]);
-						bc = mathematicaNodesProps
-							.props[i]
-							.edge_betweenness_centrality[edgeBetCent];
-						param.statements.push({
-							'statement': 'MATCH (n), (m)'+
-										' WHERE n.graph='+graph+' AND n.node="'+vec[k]+'"'+
-										' AND m.graph='+graph+' AND m.node="'+vec[k+1]+'"'+
-										' AND n.key="'+key+'" AND m.key="'+key+'"'+
-										' OPTIONAL MATCH p=(n)-[r]->(m)'+
-										' WHERE r.betweenness_centrality="'+bc+'"'+
-										' WITH n, m, nodes(p) as relations'+
-										' FOREACH (u in'+
-										' CASE WHEN'+
-										' relations IS NULL'+
-										' THEN [1]'+
-										' ELSE [] END |'+
-										' CREATE (n)-[:has {betweenness_centrality:"'+
-										+bc+'"'+edge_prop[edgeInd]+'}]->(m))'
-						});
-						edgeBetCent++;
-						k++;
-						edgeInd++;
-					}
-					//console.log(JSON.stringify(param.statements)+" AQUI\n\n\n");
-					//console.log('\nAQUI:  '+JSON.stringify(mathematicaNodesProps.props[i].edge_betweenness_centrality));
-					vec = [];
-					if (start >= graphLength) break;
+ 	_sendToNeo4jDriver: function (mathematicaNodesProps, propsIndex, CONST_MAX_INSERTION, fileName, graphs, start, graphLength, labels, labels_edge, edge_weight, time) {
+ 		//1. Criar cypher: criar nós, relações e propriedades.
+	    var bc, vertices, arrayToString, edge_prop = [], graph, aux = [],
+	        vec = [], edgeInd = 0, key, cypher = "", 
+	        vertices = mathematicaNodesProps.props[propsIndex].vertices;
+	    graph = mathematicaNodesProps.props[propsIndex].graph;
+	    vec = utils._stringToArray(graphs[graph-1]);
+		arrayToString = vec.toString().replace (/,/g, "");
+		key = crypto.createHmac("md5", "password")
+					.update(arrayToString).digest('hex');
+		count = 0;
+		var edgeBetCent = 0;
+		if (typeof labels_edge != 'undefined' || typeof edge_weight != 'undefined')
+		{
+			if (typeof labels_edge != 'undefined' || labels_edge.length > 0) {
+				for (var a = 0; a < labels_edge.length; a++)
+					edge_prop[a] = ', edge_label: "'+labels_edge[a]+
+							'", peso:"'+edge_weight[a]+'"';
+			}
+			if (typeof edge_weight != 'undefined' || edge_weight.length > 0) {
+				for (var b = 0; b < edge_weight.length; b++)
+					edge_prop[b] = ', peso:"'+edge_weight[b]+'"';
+			}
+		}
+		else {
+			var len = vec.length;
+			for (var c = 0; c < len; c++)
+				edge_prop[c] = '';
+		}
+		edgeInd = 0;
+		cypher+= 'OPTIONAL MATCH p=(n:Virtual) WHERE n.key="'+key+'"'+
+				' FOREACH (u in'+
+				' CASE WHEN'+
+				' nodes(p) IS NULL'+
+				' THEN [1]'+
+				' ELSE [] END |'+
+				' CREATE (n:Virtual '+setProps.virtualNodeProps(key)+')';
+		for (var k = 0; k < (vec.length-1); k++) {
+			bc = mathematicaNodesProps
+				.props[propsIndex]
+				.edge_betweenness_centrality[edgeBetCent];
+				edgeBetCent++;
+			aux.push(vec[k]);
+			aux.push(vec[k+1]);
+			var contR = 0;
+			var contL = 0;
+			for (var i = 0; i < aux.length; i++) {
+				if (vec[k] == aux[i])
+					contR++;
+				if (vec[k+1] == aux[i])
+					contL++;
+			}
+			if ((contR > 1) && (contL > 1)) {
+				cypher+= ' CREATE (n'+vec[k]+' )-[:Edge {betweenness_centrality:"'+
+					bc+'"'+edge_prop[edgeInd]+'}]->(n'+vec[k+1]+' )';
+			}
+			else if (contL > 1){
+				cypher+= ' CREATE (n'+vec[k]+':Vertice {node:"'+vec[k]+'", key: "'+key+'"})-[:Edge {betweenness_centrality:"'+
+					bc+'"'+edge_prop[edgeInd]+'}]->(n'+vec[k+1]+')';
+			}
+			else if (contR > 1){
+				cypher+= ' CREATE (n'+vec[k]+')-[:Edge {betweenness_centrality:"'+
+					bc+'"'+edge_prop[edgeInd]+'}]->(n'+vec[k+1]+':Vertice {node:"'+vec[k+1]+'", key: "'+key+'"})';
+			}
+			else {
+				cypher+= ' CREATE (n'+vec[k]+':Vertice {node:"'+vec[k]+'", key: "'+key+'"})-[:Edge {betweenness_centrality:"'+
+					bc+'"'+edge_prop[edgeInd]+'}]->(n'+vec[k+1]+':Vertice {node:"'+vec[k+1]+'", key: "'+key+'"})';
+			}
+
+			k++;
+			edgeInd++;
+		}
+		cypher+=')';
+		return session
+			.run(cypher, setProps.nodeVirtualDriver(mathematicaNodesProps.props[propsIndex], key))
+			.then( function (results) {
+				propsIndex++;
+				start++;
+				//console.log(start);
+				
+                if (start%1000 == 0 ) {
+                    //time = ((new Date().getTime()/(1000*60))) - time;
+                    var time2 = process.hrtime(time);
+                    var porcent = (start/graphLength)*100
+					console.log("Concluído: "+porcent+"% ("+start+"/"+graphLength+")");
+                    console.info("Execution time (hr): %ds %dms", time2[0], time2[1]/1000000);
+                    //utils._writeFileExists("tempoUpload.csv",start+","+time2[0]+","+ time2[1]/1000000); 
+                    time = process.hrtime();
+                    utils._setTimeOut(2000);
+                    if (start%200000 == 0) 
+                        utils._setTimeOut(120000);
+                    //utils._writeFileExists("tempoUpload.csv",start+","+time); 
+                    //time = ((new Date().getTime()/(1000*60)));
 				}
-				//console.log(param);
-				//console.log("param.length "+param.length);
-				//console.log('parou em:'+start);
-				if (param.length == 0) {
+				if (start >= graphLength) {
+                    var time2 = process.hrtime(time);
+                    var porcent = (start/graphLength)*100
+					console.log("Concluído: "+porcent+"% ("+start+"/"+graphLength+")");
+                    console.info("Execution time (hr): %ds %dms", time2[0], time2[1]/1000000);
+                    //utils._writeFileExists("tempoUpload.csv",start+","+time2[0]+","+ time2[1]/1000000);
+                    session.close();
+                    driver.close();
+                    return 'Dados inseridos com sucesso!';
+				}
+				
+				else if (propsIndex >= CONST_MAX_INSERTION) {
+					//1000(ms to s) 60 (s to min)
+					var time2 = process.hrtime(time);
+                    var porcent = (start/graphLength)*100
+					console.log("Concluído: "+porcent+"% ("+start+"/"+graphLength+")");
+                    console.info("Execution time (hr): %ds %dms", time2[0], time2[1]/1000000);
+                   // utils._writeFileExists("tempoUpload.csv",start+","+time2[0]+","+ time2[1]/1000000);
+					return file._sendToMathematica(fileName, graphs, start, graphLength, labels, labels_edge, edge_weight);
+		
+				}
+				
+				
+				return file._sendToNeo4jDriver(mathematicaNodesProps, propsIndex, CONST_MAX_INSERTION, fileName, graphs, 
+								start, graphLength, labels, labels_edge, edge_weight, time);
+
+			})
+			.catch( function (err) {
+				return new promise( function (resolve, reject) {
+					reject(err);
+				});
+			});
+ 	},
+
+	_sendToMathematica: function (fileName, graphs, start, graphLength, labels, labels_edge, edge_weight) {
+ 		var CONST_MAX_INSERTION = 15000;
+ 		//No script mathematica.m é existe um break em CONST_MAX, isto é, o for inicia em start, indo até o tamanho
+ 		//maximo de grafos do arquivo. Porém, caso atinja CONST_MAX ele da o break.
+ 		//console.log("....Calculando no Julia....");	
+		//var time  = ((new Date().getTime()/(1000*60)));
+        //var hrstart = process.hrtime();
+
+        var time = process.hrtime();
+
+		//return scripts.execute(juliaPath+fileName+' '+start+' '+CONST_MAX_INSERTION+posFileNamePath)
+        console.log("Executando Mathematica...");
+		return scripts.execute(mathematicaPath+fileName+' '+start+' '+CONST_MAX_INSERTION+posFileNamePath)	
+		.then(function (results) {
+			console.log("Mathematica executado com sucesso!");
+			var stringResults = results.stdout.replace(/(\r\n|\n|\r)/gm,""),
+				mathematicaNodesProps = scripts.mathematicaGraphProperties(stringResults), propsIndex = 0;
+			return file
+				._sendToNeo4jDriver(mathematicaNodesProps, propsIndex, CONST_MAX_INSERTION, fileName, 
+					graphs, start, graphLength, labels, labels_edge, edge_weight, time)
+				.then(function (res) {
+                    //var hrend = process.hrtime(hrstart);
+                    //console.info("Execution time (hr): %ds %dms", hrend[0], hrend[1]/1000000);
+                    utils._writeFileExists("tempoUpload.csv",start+","+hrend[0]+","+ hrend[1]/1000000); 
+					return res;
+				})
+				.catch(function (err) {
+					Console.log("CHAMOU ERRO2");
 					return new promise( function (resolve, reject) {
-						reject('Empty file or error during create REST objects!');
+						reject('Error in ELST Function is '+ err);
 					});
-				}
-				var sParam = JSON.stringify(param);
-				console.log(sParam);
-				return cypher
-					.statements(sParam)
-					.then(function (results) {
-						console.log("results "+results);
-						if (start >= graphLength) return results;
-						console.log("chamou recursão!");
-						utils._setTimeOut(500);
-						return file._sendToNeo4j(fileName, graphs, start, graphLength, labels, labels_edge, edge_weight);
-					})
-					.catch(function (err) {
-						return new promise( function (resolve, reject) {
-							reject(err);
-						});
-					});
+				});
 		}) 
 		.catch(function (err) {
+			Console.log("CHAMOU ERRO");
 			return new promise( function (resolve, reject) {
 				reject('Error in ELST Function is '+ err);
 			});
@@ -282,13 +317,18 @@ var file = module.exports = {
 
  	},
 
- 	convertELST: function (content, fileName, labels, format, labels_edge, edge_weight) {
-		var graphs = content.split(/ +\r\n|\n|\r/),
+
+		convertELST: function (content, fileName, labels, format, labels_edge, edge_weight) {
+ 		var graphs = content.split(/ +\r\n|\n|\r/),
 			graphLength;
-	    console.log("format is: "+format);
-	    if (format == 'g6') graphs = utils._removeEmptyString(graphs);
+		if (format == 'g6') graphs = utils._removeEmptyString(graphs);
 	    if (typeof labels !== 'undefined') 
-	    	labels = utils._setLabelsVertices(labels, vertices);
+	    {
+	    	var vec = utils._getUnrepeatableVertices(utils._stringToArray(graphs[0]));
+	    	console.log("vec "+vec);
+	    	labels = utils._setLabelsVertices(labels, vec);
+	    	console.log("labels "+labels);
+	    }
 	    else
 	    	labels = [];
 	    if (graphs[0].length <= 3) {
@@ -307,10 +347,10 @@ var file = module.exports = {
 		else 
 			graphLength = graphs.length;
 		//console.log(graphs);
-		console.log('Executará o mathematica\nNúmero de grafos: '+graphLength);
+		//console.log('Executará o mathematica\nNúmero de grafos: '+graphLength);
 		labels = [];
 		return file
-	    	._sendToNeo4j(fileName, graphs, 0, graphLength, labels, labels_edge, edge_weight)
+	    	._sendToMathematica(fileName, graphs, 0, graphLength, labels, labels_edge, edge_weight)
 	    	.then( function (result) {
 	    		return result;
 	    	})
@@ -389,7 +429,6 @@ var file = module.exports = {
 				i++;
 				init = false;
 			}
-			console.log('\n\nout: '+content[i]);
 			while (content[i] != '\n') {
 				if (content[i-1] == '\n') {
 					while (content[i] !== '\t') {
@@ -399,11 +438,9 @@ var file = module.exports = {
 					i++;
 					while (content[i] !== '\t') {
 						str2 += content[i];
-						console.log(str2);
 						i++;
 					} 
 					string = string+str1+' '+str2+'  ';
-					console.log('\n'+string);
 					str1 = '';
 					str2 = '';
 					i++;
@@ -424,7 +461,6 @@ var file = module.exports = {
 						i++;
 						while (content[i] !== '\n') {
 							str2 += content[i];
-							console.log(JSON.stringify(content[i]));
 							if (content[i+1] == 'undefined') break; 
 							i++;
 						}
@@ -458,22 +494,17 @@ var file = module.exports = {
 			str += content[i];
 			i++;
 		}
-		console.log(content[i]);
 		i++;
 		numGraphs = parseInt(str);
-		console.log(numGraphs);
 		str = '';
 		while (k < numGraphs) {
 			if (content[i] == '\n') k++;
 			i++;
 		}
-		console.log(content[i]);
-		console.log('\npulou para: '+content[i]+'\n');
 		for (var j = i; j < content.length; j++) {
 			if (content[j] == '0' || content[j] == '1') {
 				if (content[j] == '1') {
 					str += 	contLine.toString()+' '+contNodes.toString()+'  ';
-					console.log(str);
 				}
 				if (contNodes == numGraphs) {
 					contLine++;
@@ -481,7 +512,6 @@ var file = module.exports = {
 				} 
 				else contNodes++;
 			}
-			console.log(j+' '+content.length+'\n\nFinal:\n'+str);	
 		}
 		name = crypto.createHmac("md5", "password")
 					.update(Date.now().toString+fileName).digest('hex')+'.el';

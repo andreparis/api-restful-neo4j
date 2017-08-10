@@ -8,6 +8,9 @@ var server = require('./server.js'),
     filter = require('./nodes_prop.js'),
     crypto = require('crypto'),
     setup = require('./setup.js'),
+    neo4j = require('neo4j-driver').v1,
+    driver = neo4j.driver("bolt://0.0.0.0:7687", neo4j.auth.basic("neo4j", "labtel123")),
+    session = driver.session(),
     app = express(),
 	nameData = Date.now(),
     storage = multer.diskStorage({
@@ -15,7 +18,6 @@ var server = require('./server.js'),
                 cb(null, setup.getUploadedFilePath())
             },
             filename: function (req, file, cb) {
-                console.log("Multer");
                 cb(null, nameData+file.originalname)
             }
         }),
@@ -65,43 +67,30 @@ app.get('/list_graphs', function (req, res) {
             res.json(error);
         });
 });
+
 /*UPLOAD A SINGLE FILE AT /UPLOADS DEFINED ON VARIABLE storage AT SCOPE*/
 /*
 labels: node1:label1,node2:label2
 */
 app.post('/load_graph', upload.single('file'), function (req, res) {
-    console.log('teste');
-    console.log(req.file.originalname);
     var labels = [], format = utility._getFormat(req.file.originalname);
-    console.log(format);
     return files
         .convertToBDRestPattern(nameData+req.file.originalname, format, req.body.labels)
 		.then(function (results) {
-			 /*return cypher
-			.statements(JSON.stringify(body))
-			.then(function (results) {*/
-            console.log(results);
-            results = JSON.parse(results);
-            if (results.errors.length !== 0) {
-                return res.status(500).json({
-                    'status': LOAD_ERROR,
-                    'message': 'Error in file s data!',
-                    'system_response': results.errors 
-                });   
-            }
+			// if (results.errors.length !== 0) {
+             //   console.log("CHAMOU ERRO5");
+             //   return res.status(500).json({
+             //       'status': LOAD_ERROR,
+             //       'message': 'Error in file s data!',
+             //       'system_response': results.errors 
+             //   });   
+            //}
 			return res.status(200).json({
                 'status': LOAD_SUCCESS,
-                'message': 'success'
+                'message': JSON.stringify(results)
             });
-			/*})
-			.catch( function (err) {
-                console.log(err);
-                console.log('aqui2323');
-                throw new Error(err);
-			});*/
 		})
         .catch( function (err) {
-            console.log(JSON.stringify(err));
             res.status(500).json({
                 'status': LOAD_ERROR,
                 'message': 'File were not inserted!',
@@ -134,69 +123,75 @@ app.post('/delete_all', function (req, res) {
 });
 
 function _generalReturn (req, res, query) {
-    //console.log(query);
+    
+    var time = process.hrtime();
     cypher
     .query(query)
     .then(function (result) {
-        var graphs = JSON.parse(result).data,
-            systemResponse = utility._relationshipResponse(graphs),
-            string = "", format,
+        console.log(result);
+        var time2 = process.hrtime(time);
+        var graphs = JSON.parse(result).data;
+        console.log(graphs);
+        if (typeof req.query.number_of_graphs != 'undefined' && 
+            req.query.number_of_graphs == "y") {
+            console.log(graphs+","+time2[0]+"."+ time2[1]);
+            //utility._writeFileExists("TemposFiltros"+req.query.nextfile+".csv",graphs+","+time2[0]+"."+ time2[1]+","+JSON.stringify(req.body));
+    	    res.status(200).json({
+                    'status': GET_SUCCESS,
+                    'message': graphs
+            });
+            return;
+        }
+
+        var systemResponse = utility._relationshipResponse(graphs),
             allGraphs = translate.convertToEL(systemResponse),
             numbOfGraphs = allGraphs.count,
             fileName =  crypto
                         .createHmac("md5", "password")
                         .update(Date.now().toString())
                         .digest('hex')+'_'+numbOfGraphs+'.el';
-        if (systemResponse.length == 0) {
-            res.status(200).json({
-                'status': GET_SUCCESS,
-                'message': "No results were finds!"
-            });
-        }
-        else if (req.query.download == "y") {
-            //if (typeof req.query.output_format !== 'undefined')
-                string = allGraphs.graphs;
-            //}
-            format = req.query.output_format;
-            fs.writeFile(downloads+fileName, string, 'utf8', function (err) {
-                if (err) return console.log(err);
-            });
-            res.status(200).json({
-                'status': GET_SUCCESS,
-                'message': 'File name is'+fileName
-            });
-        }
-        else if (req.query.number_of_graphs == "y") {
-            if (numbOfGraphs > 1)
-                 res.status(200).json({
+            if (systemResponse.length == 0) {
+                res.status(200).json({
                     'status': GET_SUCCESS,
-                    'message': "There are "+numbOfGraphs+" graphs in this file"
+                    'message': "No results were find!"
                 });
-            res.status(200).json({
+            }
+            else if (req.query.download == "y") {
+                console.log("allGraphs  "+allGraphs);
+                var string = allGraphs.graphs,
+                    number_of_graphs = string.length;
+                    console.log("string  "+string);
+                fs.writeFile(downloads+fileName, string, 'utf8', function (err) {
+                    
+                    //console.log(graphs+","+time2[0]+"."+ time2[1]);
+                   // utility._writeFileExists("TemposFiltros"+req.query.nextfile+".csv",number_of_graphs+","+time2[0]+"."+ time2[1]+","+JSON.stringify(req.body));
+                    if (err) return console.log(err);
+                });
+                res.json({
+                    'status': GET_SUCCESS,
+                    'message': 'File name is'+fileName
+                });
+            }
+            else 
+             res.status(200).json({
                 'status': GET_SUCCESS,
-                'message': "There is "+numbOfGraphs+" graphs in this file"
+                'message': systemResponse
             });
-        }
-        else 
-         res.status(200).json({
-            'status': GET_SUCCESS,
-            'message': systemResponse
+        })
+        .catch(function (err) {
+            res.status(500).json({ 
+                'error': GET_ERROR,
+                'message': 'System error during search. Try again later!',
+                'system_response': err 
+            });
         });
-    })
-    .catch(function (err) {
-        res.status(500).json({ 
-            'error': GET_ERROR,
-            'message': 'System error during search. Try again later!',
-            'system_response': err 
-        });
-    });
 }
 
 function _returnGraphProps(req, res, query, props) {
     cypher
     .query(query)
     .then(function (results) {
-        //console.log(results);
+        console.log(results);
         //var objectProps = translate.getPropValue(JSON.parse(results));
         //var string = results[0].columns + "|"+,
         /*var jResults = JSON.parse(results),
@@ -525,11 +520,13 @@ app.get('/get_virtual_number_of_vertices', function (req, res) {
     return _generalReturn(req, res, query);
 });
 app.post('/get_graphs', function (req, res) {
+    console.log("REQ:::"+req);
     var query = JSON.stringify({
-        'query': filter.propsQueriesquerys(req.body)
+        'query': filter.propsQueriesquerys(req.body)+filter.returnFromNeo4j(req.query.number_of_graphs, null)
     });
     console.log(query);
     return _generalReturn(req, res, query);
+    //return _generalReturn(req, res, filter.propsQueriesquerys(req.body));
 });
 
 app.post('/create_comp_graphs', function (req, res) {

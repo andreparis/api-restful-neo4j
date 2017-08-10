@@ -3,37 +3,44 @@ var fs = require('fs'),
 	mathematicaPath = setupPaths.getMatheticaCompPath(),
 	scripts = require('./scripts.js'),
 	promise = require('bluebird'),
-	posFileNamePath = setupPaths.getOS() ? '' : '"';
+	utils = require('./utils/utility.js'),
+	posFileNamePath = setupPaths.getOS() ? '' : '"',
+	fileOriginGraphs = 'comp/no_nodes_removed.csv',
+	fileNodeRemoved = 'comp/node_removed.csv',
+	filePairNodesRemoved = 'comp/pair_of_nodes_removed.csv',
+	TIME_WRITE_FILE = 5000;
 
 var compare = module.exports = {
 	
-	createCSV: function (graph, nodes, allNodes, repeatableNodes) {
-		var header = 'node,number_of_vertices,number_of_edges,'+
-			'edge_density,average_distance,radius,diameter,wiener_index,'+
-			'minimum_transmission,maximum_transmission,minimum_degree,maximum_degree,'+
-			'vertex_connectivity,edge_connectivity,minimum_vertex_betweenness_centrality,'+
-			'maximum_vertex_betweenness_centrality,minimum_edge_betweenness_centrality,'+
-			'maximum_edge_betweenness_centrality,minimum_closeness_centrality,maximum_closeness_centrality,'+
-			'removed_node \n',
-			props = graph.node+","+graph.number_of_vertices+","+graph.number_of_edges+","+
-					graph.edge_density+","+graph.average_distance+","+graph.radius+","+
-					graph.diameter+","+graph.wiener_index+","+graph.minimum_transmission+","+
-					graph.maximum_transmission+","+graph.minimum_degree+","+
-					graph.maximum_degree+","+graph.vertex_connectivity+","+graph.edge_connectivity+","+
-					graph.minimum_vertex_betweenness_centrality+","+
-					graph.maximum_vertex_betweenness_centrality+","+
-					graph.minimum_edge_betweenness_centrality+","+
-					graph.maximum_edge_betweenness_centrality+","+
-					graph.minimum_closeness_centrality+","+graph.maximum_closeness_centrality+
-					", no node removed\n",
-			csv = nodes+"\n"+header+props;
-		return this._newProps("", nodes, allNodes, repeatableNodes)
+createCSV: function (graph, nodes, allNodes, repeatableNodes, elNodes) {
+		var header = 'Property Value, Graph and Removed Node/Pair of Nodes \n';
+
+			compare._writeFileExists(header, "comp/edge_density.csv", graph.edge_density+", graph "+elNodes);
+			compare._writeFileExists(header, 'comp/average_distance.csv', graph.average_distance+", graph "+elNodes);
+			compare._writeFileExists(header, 'comp/radius.csv', graph.radius+", graph "+elNodes);
+			compare._writeFileExists(header, 'comp/diameter.csv', graph.diameter+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/wiener_index.csv", graph.wiener_index+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/minimum_transmission.csv", graph.minimum_transmission+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/maximum_transmission.csv", graph.maximum_transmission+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/minimum_degree.csv", graph.minimum_degree+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/maximum_degree.csv", graph.maximum_degree+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/vertex_connectivity.csv", graph.vertex_connectivity+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/edge_connectivity.csv", graph.edge_connectivity+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/minimum_vertex_betweenness_centrality.csv", graph.minimum_vertex_betweenness_centrality+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/maximum_vertex_betweenness_centrality.csv", graph.maximum_vertex_betweenness_centrality+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/minimum_edge_betweenness_centrality.csv", graph.minimum_edge_betweenness_centrality+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/maximum_edge_betweenness_centrality.csv", graph.maximum_edge_betweenness_centrality+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/minimum_closeness_centrality.csv", graph.minimum_closeness_centrality+", graph "+elNodes);
+			compare._writeFileExists(header, "comp/maximum_closeness_centrality.csv", graph.maximum_closeness_centrality+", graph "+elNodes);
+		
+		return this._newProps("", nodes, allNodes, repeatableNodes, elNodes)
 			.then(function (res) {
-				csv += res;
+				//csv += res;
 				//console.log("terminou");
-				fs.writeFile('comp/key_'+graph.key+'.csv', csv, 'utf8', function (err) {
+				/*fs.writeFile('comp/key_'+graph.key+'.csv', csv, 'utf8', function (err) {
 		            if (err) return console.log(err);
-		        });
+		        });*/
+			return res;
 			})
 			.catch(function (err) {
 			return new promise( function (resolve, reject) {
@@ -42,7 +49,7 @@ var compare = module.exports = {
 		});
 	},
 	
-	_newProps: function (csv, nodes, allNodes, repeatableNodes, interation) {
+	_newProps: function (csv, nodes, allNodes, repeatableNodes, originalGraph, interation) {
 		var elNodes = "",
 			fileName = 'graphs.el',
 			removedNode = "";
@@ -61,44 +68,90 @@ var compare = module.exports = {
 			elNodes = res.nodes;
 			removedNode = res.removedNode;
 			interation += 2;
-			console.log("elNodes "+elNodes);
+			//console.log("elNodes "+elNodes);
 		}
         fs.writeFile('comp/'+fileName, elNodes, 'utf8', function (err) {
             if (err) return console.log(err);
         });
-		return scripts.execute(mathematicaPath+fileName+'" '+range+posFileNamePath)
+        //console.log(mathematicaPath+fileName+' '+range);
+		return scripts.execute(mathematicaPath+fileName+' '+range)
 			.then(function (results) {
+				//console.log(results);
 				var stringResults = results.stdout.replace(/(\r\n|\n|\r)/gm,""),
 					mathematicaNodesProps = scripts.mathematicaGraphProperties(stringResults),
 					graph = mathematicaNodesProps.props[0];
-				//console.log(results);
-				//console.log('mathematicaNodesProps: '+JSON.stringify(mathematicaNodesProps));
-				csv += "virtual,"+graph.number_of_vertices+","+graph.number_of_edges+","+
-					graph.edge_density+","+graph.average_distance+","+graph.radius+","+
-					graph.diameter+","+graph.Wiener_index+","+graph.minimum_transmission+","+
-					graph.maximum_transmission+","+graph.minimum_degree+","+
-					graph.maximum_degree+","+graph.vertex_connectivity+","+graph.edge_connectivity+","+
-					graph.minimum_vertex_betweenness_centrality+","+
-					graph.maximum_vertex_betweenness_centrality+","+
-					graph.minimum_edge_betweenness_centrality+","+
-					graph.maximum_edge_betweenness_centrality+","+
-					graph.minimum_closeness_centrality+","+graph.maximum_closeness_centrality+","+
-					removedNode+"\n";
+				var header = "";
+				compare._writeFileExists(header, "comp/edge_density.csv", graph.edge_density+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, 'comp/average_distance.csv', graph.average_distance+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, 'comp/radius.csv', graph.radius+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, 'comp/diameter.csv', graph.diameter+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/wiener_index.csv", graph.wiener_index+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/minimum_transmission.csv", graph.minimum_transmission+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/maximum_transmission.csv", graph.maximum_transmission+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/minimum_degree.csv", graph.minimum_degree+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/maximum_degree.csv", graph.maximum_degree+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/vertex_connectivity.csv", graph.vertex_connectivity+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/edge_connectivity.csv", graph.edge_connectivity+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/minimum_vertex_betweenness_centrality.csv", graph.minimum_vertex_betweenness_centrality+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/maximum_vertex_betweenness_centrality.csv", graph.maximum_vertex_betweenness_centrality+",graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/minimum_edge_betweenness_centrality.csv", graph.minimum_edge_betweenness_centrality+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/maximum_edge_betweenness_centrality.csv", graph.maximum_edge_betweenness_centrality+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/minimum_closeness_centrality.csv", graph.minimum_closeness_centrality+", graph "+originalGraph+" less "+removedNode);
+				compare._writeFileExists(header, "comp/maximum_closeness_centrality.csv", graph.maximum_closeness_centrality+", graph "+originalGraph+" less "+removedNode);
 				if (nodes.length > 0) {
-					return compare._newProps(csv, nodes, allNodes, repeatableNodes);
+					return compare._newProps("", nodes, allNodes, repeatableNodes, originalGraph);
 				}
 	        	else if (interation < allNodes.length) {
-	        		console.log("interation "+interation);
-	        		return compare._newProps(csv, nodes, allNodes, repeatableNodes, interation);
+	        		//console.log("interation "+interation);
+	        		return compare._newProps("", nodes, allNodes, repeatableNodes, originalGraph, interation);
 	        	}	
 	        	else
-	        		return csv;
+	        		return "success";
 			})
 			.catch(function (err) {
 				return new promise( function (resolve, reject) {
 					reject(err);
 				});
 			});
+	},
+
+	_writeFIle: function (fileName, string) {
+		fs.writeFile(fileName, string, 'utf8', function (err) {
+            if (err) return console.log(err);
+            console.log("Escreveu: "+string);
+            return string;
+        });
+	},
+
+	_writeFileExists: function (header, fileName, string) {
+		fs.exists(fileName, function(exists) { 
+			if (exists) {
+				//console.log("EXISTE "+fileName);
+				/*fs.appendFile(fileName, string+'\n', function (err) {
+					if (err) {
+					    return console.log(err);
+					  }
+				});*/
+				fs.readFile(fileName, 'utf8', function (err,data) {
+				  if (err) {
+				    return console.log(err);
+				  }
+				  fs.writeFile(fileName, data+"\n"+string, 'utf8', function (err) {
+			            if (err) return console.log(err);
+			            //console.log("Escreveu: "+data+string);
+			            return data+"\n"+string+'\n';
+			        });
+				});
+			} 
+			else {
+				//console.log("NAO EXISTE "+fileName);
+				fs.writeFile(fileName, header+string, 'utf8', function (err) {
+		            if (err) return console.log(err);
+		            //console.log("Escreveu: "+string);
+		            return string;
+		        });
+			}
+		});
 	},
 
 	_removeNode: function (nodes, allNodes, repeatableNodes, str) {
@@ -113,7 +166,6 @@ var compare = module.exports = {
 		for (var i = 0; i < nodes.length; i++) {
 			newArrayOfNodes[i-1] = nodes[i];
 		}
-		//console.log("newArrayOfNodes "+newArrayOfNodes);
 		for (var j = 0; j < allNodes.length; j++) {
 			if (allNodes[j] == node) {
 				if (j%2 == 0) {
@@ -149,12 +201,12 @@ var compare = module.exports = {
 
 	_removePairNode: function(allNodes, interation) {
 		var str = "", removedNode = "";
-		console.log( allNodes.length);
+		//console.log("Erro??"+ allNodes);
 		for (var i = 0; i < allNodes.length; i++) {
 			if (i == interation) {
 				removedNode = allNodes[i] +" "+allNodes[i+1];
 				i += 2;
-				console.log("i2: "+i);
+				//console.log("i2: "+i);
 				if (typeof allNodes[i] == 'undefined')
 					break;
 			}
@@ -163,8 +215,8 @@ var compare = module.exports = {
 			else 
 				str+= allNodes[i]+"  ";
 		}
-		console.log("str "+str);
-		console.log("removedNode "+removedNode);
+		//console.log("str "+str);
+		//console.log("removedNode "+removedNode);
 		return {
 			'nodes': str,
 			'removedNode': removedNode

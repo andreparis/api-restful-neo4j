@@ -1,7 +1,8 @@
 var nodesProps = require('./nodes_prop.js'),
 	fs = require('fs'),
 	promise = require('bluebird'),
-	comp = require('./compare_graphs.js');
+	comp = require('./compare_graphs.js'),
+	utils = require('./utils/utility.js');
 
 var downloads = module.exports = {
 
@@ -37,37 +38,12 @@ var downloads = module.exports = {
 		for (var i = start; i < object.length;) {
 			key = object[i].key;
 			//console.log("key>>> "+ key);
-			console.log("concluido "+i+" de "+object.length);
+			//console.log("concluido "+i+" de "+object.length);
 			number++;
-			while (key == object[i].key) {
-				if (!toComp && (i >= (object.length-1))) {
-					string += node+"\n";
-					return {
-						'graphs': string,
-						'count': number
-					};
-				}
-				else if ((object[i].node == "virtual") && toComp) {
-					start = i;
-					//console.log("object[i].node>>> "+ object[i].node);
-					return comp
-						.createCSV(object[i], nodes, allNodes, repeatableNodes)
-						.then(function () {
-							if (i >= object.length)
-								return 0;
-							else
-								return downloads.convertToEL(object, toComp, start+1);
 
-						})
-						.catch(function (err) {
-							return new promise( function (resolve, reject) {
-								reject(err);
-							});
-						});
-		            i++;
-					break;
-				}
-				else if (i%2 == 0)
+			while (key == object[i].key) {
+				//console.log(object[i].node);
+				if (i%2 == 0)
 					node += object[i].node+" ";
 				else 
 					node += object[i].node+"  ";
@@ -79,6 +55,43 @@ var downloads = module.exports = {
 						nodes.push(object[i].node);
 				}
 				i++;
+
+				if (!toComp && (i > (object.length-1))) {
+					string += node+"\n";
+					return {
+						'graphs': string,
+						'count': number
+					};
+				}
+				else if ((object[i].node == "virtual") && toComp) {
+					start = i;
+					//console.log("Comparar: "+nodes);
+					return comp
+						.createCSV(object[i], nodes, allNodes, repeatableNodes, node)
+						.then(function () {
+							if (i >= object.length)
+								return 0;
+							else {
+								if (object.length%1000 == 0) {
+									console.log("time out");
+									utils._setTimeOut(10000);
+								} 
+								var percent = (start/object.length)*100;
+								console.log("Criando... "+percent+"% ("+start+"/"+object.length+")"); 
+								return downloads.convertToEL(object, toComp, start+1);
+							}
+
+						})
+						.catch(function (err) {
+							return new promise( function (resolve, reject) {
+								console.log(err);
+								reject(err);
+							});
+						});
+		            i++;
+					break;
+				}
+				
 			}
 			string += node+"\n";
 			node = "";

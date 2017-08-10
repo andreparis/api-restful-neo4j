@@ -122,6 +122,51 @@ var scripts = module.exports = {
 		product = parseFloat(dividend)/parseFloat(divisor);
 		return product;
 	},
+
+	/*_getWaveLength: function (string) {
+		var str = '', waveLength = '', i = 0;
+		console.log(string);
+		while (string[i] !== ';') {
+			str += string[i];
+			//console.log(string[i]);
+			if ((string[i]+string[i+1]+string[i+2]+string[i+3]) == 'An *') {
+				console.log("ENTROU EM An");
+				while (string[i] !== '.') {
+					str += string[i];
+					console.log(str);
+					if (str == 'An *optimal* solution has been found with ') {
+						console.log("wave0 "+string[i]);
+						i++;
+						console.log("wave1 "+string[i]);
+						while (string[i] !== ' ') {
+							waveLength += string[i];
+							i++;
+							console.log("wave1 "+waveLength);
+						}
+					}
+					i++;
+				}
+			}
+			i++;
+		}
+		console.log(str);
+		console.log("SAIU!!");
+		return waveLength;
+	},*/
+	_getWaveLength: function (string, fileName) {
+		var aux = '', waveLength = '', i = 0;
+		while (aux !== fileName) {
+			aux+= string[i];
+			i++;
+		}
+		i++;
+		while (typeof string[i] !== 'undefined') {
+			waveLength += string[i];
+			i++;
+		}
+		return waveLength;
+	},
+
 	_getProperty: function (string, i, isVertice) {
 		//i = 0 ? 0 : i++;
 		var prop = "", aux = false, auxList = false, list = [];
@@ -165,13 +210,15 @@ var scripts = module.exports = {
 		return new promise ( function (resolve, reject) {
 			var child = child_process.exec(scriptName, {
 				//Change on server
-				'maxBuffer': 1024*99999999999999999999
+				'maxBuffer': 1024*99999999999999999999999999999999999999999999999999999999999999999999999999999999
 			}, function(error, stdout, stderr) {
 				if (error !== null) {
+					console.log("erro");
+					return resolve(scripts.execute(scriptName));
 					error.child = child; //monkeypatch the error with a custom .child property.
 					reject(error);
 					throw new Error(error);
-				} 
+				}
 				resolve({
 						'child': child, 
 						'stdout': stdout, 
@@ -295,7 +342,7 @@ var scripts = module.exports = {
 			getAttribute = this._getProperty(string, i, false);
 			prop.vertices_eccentricity = getAttribute.prop;
 			i = getAttribute.position;
-			//console.log("prop:::"+prop);
+			//console.log("prop:::"+JSON.stringify(prop));
 			if (this._checkProp(prop)) {
 				console.log("entrou no erro!!");
 				return 'undefined';

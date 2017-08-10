@@ -1,6 +1,32 @@
-var q = require('q');
+var q = require('q'),
+	fs = require('fs'),
+	path = require('path');
 
 var utilities = module.exports = {
+
+	_writeFileExists: function (fileName, string) {
+		fs.exists(fileName, function(exists) { 
+			if (exists) {
+				fs.readFile(fileName, 'utf8', function (err,data) {
+				  if (err) {
+				    return console.log(err);
+				  }
+				  fs.writeFile(fileName, data+"\n"+string, 'utf8', function (err) {
+			            if (err) return console.log(err);
+			            //console.log("Escreveu: "+data+string);
+			            return data+string;
+			        });
+				});
+			} 
+			else {
+				fs.writeFile(fileName, string+'\n', 'utf8', function (err) {
+		            if (err) return console.log(err);
+		            //console.log("Escreveu: "+string);
+		            return string;
+		        });
+			}
+		});
+	},
     
     _generateRadon: function (min, max) {
         return Math.random() * (max - min) + min;
@@ -12,7 +38,7 @@ var utilities = module.exports = {
 	    }
 	},
 
-    _stringToAray: function (string) {
+    _stringToArray: function (string) {
         var vec = [], str = '',
 			graphLength = string.length;
 		for (var i = 0; i < graphLength; i++) {
@@ -23,7 +49,6 @@ var utilities = module.exports = {
 			}
 			if (str !== '') vec.push(str); 
             str = '';
-            console.log(str);
         }
         return vec;
     },
@@ -121,18 +146,17 @@ var utilities = module.exports = {
  	},
  	_setLabelsVertices: function (req, vertices) {
  		var index, labels = [], aux;
- 		console.log(req+' '+vertices);
  		for (var i = 0; i < req.length; i++) {
  			aux = '';
  			while (req[i] !== ':') {
- 				console.log('req[i]: '+req[i]);
+ 				//console.log('req[i]: '+req[i]);
  				aux += aux+req[i];
  				i++;
  			} 
  			i++;
- 			console.log('aux: '+aux);
+ 			//console.log('aux: '+aux);
  			index = utils._checkLabels(aux, vertices);
- 			console.log('index::::'+index);
+ 			//console.log('index::::'+index);
  			if (index == 'undefined') 
  				throw new Error('You are trying to define a label to a nonexistent node!');
  			labels[index] = '';
@@ -143,8 +167,7 @@ var utilities = module.exports = {
  					break;
  				i++;
  			}
- 			console.log("LABEL:::"+index+" "+vertices[index]+":"+labels[index]+'\n');
-		}
+ 		}
 		return labels;
  	},
  	_vertELtoHorizontal: function (string) {
@@ -157,12 +180,75 @@ var utilities = module.exports = {
 		}
 		return newString;
 	},
+	_horizontalELtoVert: function (nodes) {
+		var str = '';
+		for (var i = 0; i < nodes.length; i++) {
+			if (i%2 == 0) {
+				str += nodes[i]+' ';
+			}
+			else
+				str+= nodes[i] + '\n';
+		}
+		return str;
+	},
+	_horizontalELtoVert2: function (nodes) {
+		var str = '', num = '', i = 0;
+		//console.log(nodes);
+		while (i < nodes.length) {
+			while (nodes[i] !== ' ') {
+				num+=nodes[i];
+				i++;
+			}
+			i++;
+			if (nodes[i] == ' ') {
+				str += num + '\n'
+				i++;
+			}
+			else
+				str += num + ' ';
+			num = '';
+		}
+		//console.log(str);
+		return str;
+	},
 	_openFile: function (file) {
  		return q
 	        .nfcall(fs.readFile, file, 'utf-8')
 	        .catch( function (err) {
-				console.log(err);
+				//console.log(err);
 				return err;
 			});
+	},
+	_getFileContent: function (fileName) {
+		var str = "";
+		setTimeout(function () {
+			fs.readFile(fileName, 'utf8', function (err,data) {
+			  if (err) {
+			    return console.log(err);
+			  }
+			  str = data;
+			});
+		}, 100);
+		return str;
+	},
+	_fileExists: function (fileName) {
+		setTimeout( function() {
+			fs.exists(fileName, function(exists) { 
+				console.log(exists);
+				if (exists)   return true; 
+				else return false;
+			});
+		}, 100); 
+	},
+
+	_getUnrepeatableVertices: function(vec)
+	{
+		var newVec = [];
+		for(var i = 0; i < vec.length; i++)
+		{	
+			if(!newVec.includes(vec[i]))
+				newVec.push(vec[i]);
+		}
+		return newVec;
 	},
 }

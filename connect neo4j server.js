@@ -3,7 +3,7 @@ var express = require("express"),
     http = require('http'),
     app = express(),
     request = require("request-promise"),
-    auth = 'bmVvNGo6YW5kcmU=';
+    auth = 'bmVvNGo6bGFidGVsMTIz';
 
 var neo4j = module.exports = {
     neo4jServerInformations: function () {
@@ -26,7 +26,8 @@ var neo4j = module.exports = {
             headers: {
                 'Accept': 'application/json; charset=UTF-8',
                 'Content-Type': 'application/json',
-                'Authorization': auth
+                'Authorization': auth,
+                'X-Stream': 'true'
             },
             body: statement
         };

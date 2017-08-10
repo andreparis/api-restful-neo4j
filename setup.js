@@ -1,13 +1,16 @@
-var BASEPATH = '"C:\\Users\\Andre\\Documents\\Projeto LabTel\\API-RESTful\\';
+var BASEPATH = '"C:\\Users\\Andre\\Documents\\Projeto LabTel\\api-restful-neo4j\\';
 
 var setup = module.exports = {
 
 	getMathematicaPath: function () {
-		return 'math'+
-			' -script '+BASEPATH+'scripts\\mathematica.m" '+BASEPATH+'uploads\\';
+		return 'math -script scripts\\mathematica.m '+
+			'uploads\\';
+	},
+	getJuliaPath: function () {
+		return 'julia '+BASEPATH+'scripts\\Julia.jl" uploads\\'
 	},
 	getShowgPath: function () {
-		return BASEPATH+'scripts\\showg.exe"';
+		return BASEPATH+'scripts\\showg.exe" ';
 	},
 	getUploadedFilePath: function () {
 		return 'uploads\\';
@@ -15,16 +18,16 @@ var setup = module.exports = {
 	getScriptsPath: function () {
 		return BASEPATH+'scripts\\';
 	},
-	getMatheticaCompPath: function() {
-		return 'math'+
-			' -script '+BASEPATH+'scripts\\mathematica_comp.m" '+BASEPATH+'comp\\'; 
-	},
 	getOS: function () {
 		/*
 		Set:
 		0 - Windows
 		1 - Linux
 		*/
-		return 0;
+		return 1;
+	},
+	getMatheticaCompPath: function() {
+		return 'math -script scripts/mathematica_comp.m '+
+			BASEPATH+'/comp/'; 
 	}
 }

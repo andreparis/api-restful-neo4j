@@ -84,6 +84,20 @@ nodes = module.exports = {
 
 		}
 	},
+	nodeLeafDrive: function (nodeProp, aux, key, label) {
+		return props = '{'+
+			'node:"'+nodeProp.vertices[aux]+'",'+
+			'label:"'+ label+'",'+
+			'graph:"'+ nodeProp.graph+'",'+
+			'key:"'+ key+'",'+
+			'degree:"'+ nodeProp.vertices_degree[aux]+'",'+
+			'eccentricity:"'+ nodeProp.vertices_eccentricity[aux]+'",'+
+			'transmission:"'+ nodeProp.vertices_transmissions[aux]+'",'+
+			'vertex_betweenness_centrality:"'+ nodeProp.vertices_betweenness_centrality[aux]+'",'+
+			//'adjusted_vertex_betweenness_centrality': nodeProp.vertices_adjusted_vertex_betweenness_centrality[aux],
+			'closeness_centrality:"'+ nodeProp.vertices_closeness_centrality[aux]+'"}';
+
+	},
 	nodeRoot: function (rootProps, key) {
 		return props = {
 			'node': 'virtual',
@@ -114,8 +128,68 @@ nodes = module.exports = {
 			'maximum_closeness_centrality': rootProps.maximum_closeness_centrality
 		}
 	},
+	nodeVirtualDriver: function (rootProps) {
+		//console.log("rootProps::"+JSON.stringify(rootProps));
+		return props = {
+			'graph': rootProps.graph,
+			'number_of_vertices': rootProps.number_of_vertices,
+			'number_of_edges': rootProps.number_of_edges,
+			'edge_density': rootProps.edge_density,
+			'average_distance': rootProps.average_distance,
+			'radius': rootProps.radius,
+			'diameter': rootProps.diameter,
+			'wiener_index': rootProps.Wiener_index,
+			'minimum_transmission': rootProps.minimum_transmission,
+			'maximum_transmission': rootProps.maximum_transmission,
+			//'average_degree': rootProps.average_degree,
+			'minimum_degree': rootProps.minimum_degree,
+			'maximum_degree': rootProps.maximum_degree,
+			'vertex_connectivity': rootProps.vertex_connectivity,
+			'edge_connectivity': rootProps.edge_connectivity,
+			//'algebraic_connectivity': rootProps.,
+			'minimum_vertex_betweenness_centrality': rootProps.minimum_vertex_betweenness_centrality,
+			'maximum_vertex_betweenness_centrality': rootProps.maximum_vertex_betweenness_centrality,
+			/*'minimum_adjusted vertex_betweenne:'+ss_centrality': rootProps.minimum_adjusted_vertex_betweenness_centrality,
+			'maximum_adjusted vertex_betweenness_centrality': rootProps.maximum_adjusted_vertex_betweenness_centrality,*/
+			'minimum_edge_betweenness_centrality': rootProps.minimum_edge_betweenness_centrality,
+			'maximum_edge_betweenness_centrality': rootProps.maximum_edge_betweenness_centrality,
+			'minimum_closeness_centrality': rootProps.minimum_closeness_centrality,
+			'maximum_closeness_centrality': rootProps.maximum_closeness_centrality
+		};
+	},
+
+	virtualNodeProps: function (key) {
+		return props = '{'+
+			'node: "virtual",'+
+			'key:"'+ key+'",'+
+			'graph: {graph},'+
+			'number_of_vertices: {number_of_vertices},'+
+			'number_of_edges: {number_of_edges},'+
+			'edge_density: {edge_density},'+
+			'average_distance: {average_distance},'+
+			'radius: {radius},'+
+			'diameter: {diameter},'+
+			'wiener_index: {wiener_index},'+
+			'minimum_transmission: {minimum_transmission},'+
+			'maximum_transmission: {maximum_transmission},'+
+			//'average_degree': rootProps.average_degree,
+			'minimum_degree: {minimum_degree},'+
+			'maximum_degree: {maximum_degree},'+
+			'vertex_connectivity: {vertex_connectivity},'+
+			'edge_connectivity: {edge_connectivity},'+
+			//'algebraic_connectivity': rootProps.,
+			'minimum_vertex_betweenness_centrality: {minimum_vertex_betweenness_centrality},'+
+			'maximum_vertex_betweenness_centrality: {maximum_vertex_betweenness_centrality},'+
+			/*'minimum_adjusted vertex_betweenness_centrality': rootProps.minimum_adjusted_vertex_betweenness_centrality,
+			'maximum_adjusted vertex_betweenness_centrality': rootProps.maximum_adjusted_vertex_betweenness_centrality,*/
+			'minimum_edge_betweenness_centrality: {minimum_edge_betweenness_centrality},'+
+			'maximum_edge_betweenness_centrality: {maximum_edge_betweenness_centrality},'+
+			'minimum_closeness_centrality: {minimum_closeness_centrality},'+
+			'maximum_closeness_centrality: {maximum_closeness_centrality} }';
+	},
+
 	propsQueriesquerys: function (graph, loadProps) {
-		var query = 'MATCH (m) WHERE m.node="virtual"',
+		var query = 'MATCH (m:Virtual) WHERE m.node="virtual"',
 			name = '',
 			returnCypher = '',
 			withCypher = '',
@@ -301,7 +375,7 @@ nodes = module.exports = {
 	    }
 	    
 
-		if (loadProps) {
+		/*if (loadProps) {
 	    	query += ' WITH COLLECT(m) as roots'+
 				' UNWIND roots as root'+
 				' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
@@ -320,17 +394,53 @@ nodes = module.exports = {
 				' WITH n.key as key, COUNT(r) as count, root.number_of_edges as number_of_edges'+
 				withCypher + ', COLLECT(nodes(p)) as graphs'+
 				' WHERE count = number_of_edges'+
-				' RETURN graphs';
-	    return query;
+				' RETURN graphs';*/
+            /*if (loadProps) {
+                query += ' WITH COLLECT(m) as roots'+
+                                ' UNWIND roots as root'+
+                                ' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
+                                ' RETURN p, root';
+                return {
+                        'cypher': query,
+                        'props': arrayOfProps
+                }
+                }
+                query += ' WITH COLLECT(m) as roots'+
+                                ' UNWIND roots as root'+
+                                ' MATCH p=(n:Vertice)-[r]->(v:Vertice) WHERE n.key=root.key and v.key=root.key'+
+                                ' RETURN p, root';
+	 	*/
+		// query += ' RETURN COUNT(m)' ;
+
+		return query;
 	},
+    
+    returnFromNeo4j: function (numberGraphs, withCypher)
+    {
+        if (typeof numberGraphs != 'undefined' && numberGraphs == 'y')
+            return ' RETURN COUNT(m)';
+        
+        return ' WITH COLLECT(m) as roots'+
+                ' UNWIND roots as root'+
+                ' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
+                ' WITH n.key as key, COUNT(r) as count, root.number_of_edges as number_of_edges'+
+                ', COLLECT(nodes(p)) as graphs'+
+                ' WHERE count = number_of_edges'+
+                ' RETURN graphs';
+            
+    },
 
 	_returnForAllGraph: function (withCypher) {
-		return ' WITH COLLECT(m) as roots'+
+		return  ' WITH COLLECT(m) as roots'+
+                                ' UNWIND roots as root'+
+                                ' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
+                                ' RETURN p, root';
+/*' WITH COLLECT(m) as roots'+
 				' UNWIND roots as root'+
 				' MATCH p=(n)-[r]->(v) WHERE n.key=root.key and v.key=root.key'+
 				' WITH n.key as key, COUNT(r) as count, root.number_of_edges as number_of_edges,'+
 				' root as virtual'+withCypher + ', COLLECT(nodes(p)) as graphs'+
 				' WHERE count = number_of_edges'+
-				' RETURN graphs, virtual';
+				' RETURN graphs, virtual';*/
 	}
 }
